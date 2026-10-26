@@ -531,7 +531,10 @@ function saleFields() {
 function openRecord(action, id = null) {
   let type = action.replace("new-", "");
   if (!["product", "customer", "expense", "sale"].includes(type)) return;
-
+if (type === "sale") {
+  openPOS();
+  return;
+}
   const collection = type === "product" ? "products"
     : type === "customer" ? "customers"
     : type === "expense" ? "expenses" : "sales";
@@ -992,3 +995,455 @@ $("#restoreFile").addEventListener("change", async event => {
 
 renderAll();
 navigate("dashboard");
+
+/* =====================================================
+   COMMIT 2 — MULTI-PRODUCT POS CHECKOUT
+   ===================================================== */
+
+let posCart = [];
+
+function openPOS() {
+  if (!db.products.length) {
+    notify("Add a product before creating a sale.");
+    return;
+  }
+
+  if (!db.customers.length) {
+    notify("Add a customer before creating a sale.");
+    return;
+  }
+
+  posCart = [];
+
+  let modal = $("#posModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "posModal";
+    modal.className = "modal-backdrop";
+    modal.hidden = true;
+
+    modal.innerHTML = `
+      <section class="modal pos-modal" role="dialog"
+        aria-modal="true" aria-labelledby="posTitle">
+
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">SMART CHECKOUT</p>
+            <h2 id="posTitle">Create an invoice</h2>
+          </div>
+          <button class="icon-button" id="posClose"
+            type="button" aria-label="Close checkout">✕</button>
+        </div>
+
+        <div class="pos-layout">
+          <div>
+            <label class="form-field">
+              <span class="muted">Find products</span>
+              <input id="posSearch" type="search"
+                placeholder="Search name, SKU or category">
+            </label>
+            <div class="pos-products" id="posProducts"></div>
+          </div>
+
+          <div class="pos-cart">
+            <h3>Shopping cart</h3>
+            <p class="muted" id="posCartCount">0 items</p>
+            <div class="pos-cart-items" id="posCartItems"></div>
+
+            <div class="form-field">
+              <label for="posCustomer">Customer</label>
+              <select id="posCustomer"></select>
+            </div>
+
+            <div class="form-field" style="margin-top:12px">
+              <label for="posDate">Invoice date</label>
+              <input id="posDate" type="date" required>
+            </div>
+
+            <div class="pos-summary">
+              <div class="pos-summary-row">
+                <span>Subtotal</span>
+                <strong id="posSubtotal">₹0.00</strong>
+              </div>
+
+              <div class="form-field">
+                <label for="posDiscount">Discount (₹)</label>
+                <input id="posDiscount" type="number"
+                  min="0" step="0.01" value="0">
+              </div>
+
+              <div class="pos-summary-row total">
+                <span>Total</span>
+                <strong id="posTotal">₹0.00</strong>
+              </div>
+
+              <div class="form-field">
+                <label for="posPaid">Payment received (₹)</label>
+                <input id="posPaid" type="number"
+                  min="0" step="0.01" value="0">
+              </div>
+
+              <div class="pos-summary-row">
+                <span>Balance due</span>
+                <strong id="posDue">₹0.00</strong>
+              </div>
+            </div>
+
+            <button class="primary-button pos-checkout"
+              id="posCheckout" type="button">
+              Complete sale →
+            </button>
+          </div>
+        </div>
+      </section>
+    `;
+
+    document.body.appendChild(modal);
+
+    $("#posClose").addEventListener("click", closePOS);
+
+    modal.addEventListener("click", event => {
+      if (event.target === modal) closePOS();
+    });
+
+    $("#posSearch").addEventListener("input", renderPOSProducts);
+    $("#posDiscount").addEventListener("input", renderPOSSummary);
+    $("#posPaid").addEventListener("input", renderPOSSummary);
+    $("#posProducts").addEventListener("click", handlePOSProductClick);
+    $("#posCartItems").addEventListener("click", handlePOSCartClick);
+    $("#posCartItems").addEventListener("change", handlePOSQuantityChange);
+    $("#posCheckout").addEventListener("click", completePOSSale);
+  }
+
+  $("#posSearch").value = "";
+  $("#posDiscount").value = "0";
+  $("#posPaid").value = "0";
+  $("#posDate").value = today();
+
+  $("#posCustomer").innerHTML = db.customers.map(customer => `
+    <option value="${escapeHTML(customer.id)}">
+      ${escapeHTML(customer.name)}
+    </option>
+  `).join("");
+
+  renderPOSProducts();
+  renderPOSCart();
+  renderPOSSummary();
+
+  modal.hidden = false;
+  $("#posSearch").focus();
+}
+
+function closePOS() {
+  const modal = $("#posModal");
+  if (modal) modal.hidden = true;
+  posCart = [];
+}
+
+function renderPOSProducts() {
+  const query = ($("#posSearch")?.value || "").trim().toLowerCase();
+
+  const products = db.products.filter(product =>
+    [product.name, product.sku, product.category].some(value =>
+      String(value || "").toLowerCase().includes(query)
+    )
+  );
+
+  $("#posProducts").innerHTML = products.length
+    ? products.map(product => {
+        const inCart = posCart.find(item => item.productId === product.id);
+        const available = product.stock - (inCart?.qty || 0);
+
+        return `
+          <button type="button" class="pos-product"
+            data-pos-add="${escapeHTML(product.id)}"
+            ${available <= 0 ? "disabled" : ""}>
+            <strong>${escapeHTML(product.name)}</strong>
+            <small>${escapeHTML(product.sku || product.category || "Product")}</small>
+            <small>${available} available</small>
+            <span>${money(product.price)}</span>
+          </button>
+        `;
+      }).join("")
+    : '<div class="pos-empty">No matching products found.</div>';
+}
+
+function handlePOSProductClick(event) {
+  const button = event.target.closest("[data-pos-add]");
+  if (!button) return;
+
+  const product = db.products.find(p => p.id === button.dataset.posAdd);
+  if (!product) return;
+
+  const item = posCart.find(p => p.productId === product.id);
+
+  if (item) {
+    if (item.qty >= product.stock) {
+      return notify("You cannot exceed available stock.");
+    }
+    item.qty += 1;
+  } else {
+    if (product.stock < 1) return notify("This product is out of stock.");
+
+    posCart.push({
+      productId: product.id,
+      name: product.name,
+      qty: 1,
+      price: product.price,
+      cost: product.cost
+    });
+  }
+
+  renderPOSProducts();
+  renderPOSCart();
+  renderPOSSummary();
+}
+
+function handlePOSCartClick(event) {
+  const button = event.target.closest("[data-pos-action]");
+  if (!button) return;
+
+  const id = button.dataset.id;
+  const item = posCart.find(p => p.productId === id);
+  if (!item) return;
+
+  const product = db.products.find(p => p.id === id);
+
+  switch (button.dataset.posAction) {
+    case "minus":
+      item.qty -= 1;
+      if (item.qty <= 0) {
+        posCart = posCart.filter(p => p.productId !== id);
+      }
+      break;
+
+    case "plus":
+      if (product && item.qty < product.stock) {
+        item.qty += 1;
+      } else {
+        notify("Maximum available stock reached.");
+      }
+      break;
+
+    case "remove":
+      posCart = posCart.filter(p => p.productId !== id);
+      break;
+  }
+
+  renderPOSProducts();
+  renderPOSCart();
+  renderPOSSummary();
+}
+
+function handlePOSQuantityChange(event) {
+  const input = event.target.closest("[data-pos-qty]");
+  if (!input) return;
+
+  const id = input.dataset.posQty;
+  const item = posCart.find(p => p.productId === id);
+  const product = db.products.find(p => p.id === id);
+
+  if (!item || !product) return;
+
+  const qty = Number(input.value);
+
+  if (!Number.isInteger(qty) || qty < 1 || qty > product.stock) {
+    notify(`Quantity must be between 1 and ${product.stock}.`);
+    renderPOSCart();
+    return;
+  }
+
+  item.qty = qty;
+  renderPOSProducts();
+  renderPOSCart();
+  renderPOSSummary();
+}
+
+function renderPOSCart() {
+  const count = posCart.reduce((sum, item) => sum + item.qty, 0);
+
+  $("#posCartCount").textContent =
+    `${count} item${count === 1 ? "" : "s"}`;
+
+  $("#posCartItems").innerHTML = posCart.length
+    ? posCart.map(item => `
+        <div class="pos-cart-item">
+          <div>
+            <strong>${escapeHTML(item.name)}</strong>
+            <button type="button" class="mini-button pos-remove"
+              data-pos-action="remove" data-id="${escapeHTML(item.productId)}">
+              Remove
+            </button>
+          </div>
+
+          <small>${money(item.price)} each</small>
+
+          <div class="pos-quantity">
+            <button type="button" aria-label="Decrease quantity"
+              data-pos-action="minus"
+              data-id="${escapeHTML(item.productId)}">−</button>
+
+            <input aria-label="Quantity" type="number" min="1"
+              max="${db.products.find(p => p.id === item.productId)?.stock || 1}"
+              value="${item.qty}"
+              data-pos-qty="${escapeHTML(item.productId)}">
+
+            <button type="button" aria-label="Increase quantity"
+              data-pos-action="plus"
+              data-id="${escapeHTML(item.productId)}">+</button>
+
+            <strong style="margin-left:auto">${money(item.price * item.qty)}</strong>
+          </div>
+        </div>
+      `).join("")
+    : '<div class="pos-empty">Your cart is empty. Select a product to begin.</div>';
+
+  $("#posCheckout").disabled = posCart.length === 0;
+}
+
+function getPOSNumbers() {
+  const subtotal = posCart.reduce(
+    (sum, item) => sum + item.price * item.qty, 0
+  );
+
+  const discount = Number($("#posDiscount").value);
+  const total = Math.round((subtotal - discount) * 100) / 100;
+  const paid = Number($("#posPaid").value);
+
+  return { subtotal, discount, total, paid };
+}
+
+function renderPOSSummary() {
+  const { subtotal, discount, total, paid } = getPOSNumbers();
+
+  $("#posSubtotal").textContent = money(subtotal);
+  $("#posTotal").textContent = money(total);
+  $("#posDue").textContent = money(Math.max(0, total - paid));
+
+  const valid =
+    posCart.length > 0 &&
+    Number.isFinite(discount) &&
+    discount >= 0 &&
+    discount <= subtotal &&
+    Number.isFinite(paid) &&
+    paid >= 0 &&
+    paid <= total;
+
+  $("#posCheckout").disabled = !valid;
+}
+
+function completePOSSale() {
+  if (!posCart.length) return notify("Add at least one product.");
+
+  try {
+    const customerId = $("#posCustomer").value;
+    const customer = db.customers.find(c => c.id === customerId);
+
+    if (!customer) throw new Error("Select a valid customer.");
+
+    const date = $("#posDate").value;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error("Select a valid invoice date.");
+    }
+
+    for (const item of posCart) {
+      const product = db.products.find(p => p.id === item.productId);
+
+      if (!product) throw new Error(`${item.name} no longer exists.`);
+      if (!Number.isInteger(item.qty) || item.qty < 1) {
+        throw new Error("Invalid product quantity.");
+      }
+      if (product.stock < item.qty) {
+        throw new Error(`Insufficient stock for ${product.name}.`);
+      }
+
+      // Refresh prices in case inventory changed while checkout was open.
+      if (!Number.isFinite(product.price) || product.price < 0 ||
+          !Number.isFinite(product.cost) || product.cost < 0) {
+        throw new Error(`Invalid pricing for ${product.name}.`);
+      }
+    }
+
+    const subtotal = Math.round(posCart.reduce((sum, item) => {
+      const product = db.products.find(p => p.id === item.productId);
+      return sum + product.price * item.qty;
+    }, 0) * 100) / 100;
+
+    const discount = Number($("#posDiscount").value);
+    const total = Math.round((subtotal - discount) * 100) / 100;
+    const paid = Number($("#posPaid").value);
+
+    if (!Number.isFinite(discount) || discount < 0 || discount > subtotal) {
+      throw new Error("Discount must be between zero and the subtotal.");
+    }
+
+    if (!Number.isFinite(paid) || paid < 0 || paid > total) {
+      throw new Error("Payment must be between zero and the invoice total.");
+    }
+
+    const sale = {
+      id: makeId(),
+      invoice: `SF-${db.nextInvoice}`,
+      customerId,
+      date,
+      items: posCart.map(item => {
+        const product = db.products.find(p => p.id === item.productId);
+
+        return {
+          productId: product.id,
+          name: product.name,
+          qty: item.qty,
+          price: product.price,
+          cost: product.cost
+        };
+      }),
+      subtotal,
+      discount,
+      total,
+      paid
+    };
+
+    // Snapshot state so a failed save doesn't leave a partial sale.
+    const oldProducts = db.products.map(p => ({ ...p }));
+    const oldSales = [...db.sales];
+    const oldMovements = [...db.stockMovements];
+    const oldNextInvoice = db.nextInvoice;
+
+    for (const item of sale.items) {
+      const product = db.products.find(p => p.id === item.productId);
+      product.stock -= item.qty;
+      logStock(product, -item.qty, `Sale ${sale.invoice}`);
+    }
+
+    db.sales.push(sale);
+    db.nextInvoice += 1;
+
+    if (!persist()) {
+      db.products = oldProducts;
+      db.sales = oldSales;
+      db.stockMovements = oldMovements;
+      db.nextInvoice = oldNextInvoice;
+      throw new Error("Sale could not be saved. No sale was completed.");
+    }
+
+    closePOS();
+    renderAll();
+    navigate("sales");
+    notify(`Invoice ${sale.invoice} created successfully.`);
+  } catch (error) {
+    notify(error.message || "Unable to complete checkout.");
+  }
+}
+
+/* Ensure multi-item invoices print correctly. */
+const originalPrintInvoice = printInvoice;
+
+printInvoice = function (id) {
+  const sale = db.sales.find(item => item.id === id);
+  if (!sale) return originalPrintInvoice(id);
+
+  // The existing invoice printer already iterates over sale.items.
+  // Multi-item POS invoices use the same compatible data structure.
+  originalPrintInvoice(id);
+};
