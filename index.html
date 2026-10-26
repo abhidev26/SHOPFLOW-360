@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101510">
+  <meta name="description" content="SHOPFLOW 360 — small business inventory, billing and expense management.">
+  <title>SHOPFLOW 360 | Business Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <a href="#" class="brand" aria-label="ShopFlow home">
+        <span class="brand-icon">S</span>
+        <span>SHOPFLOW<small>BUSINESS OS</small></span>
+      </a>
+
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="navigation" aria-label="Main navigation">
+        <button class="nav-link active" data-page="dashboard"><span>◫</span> Dashboard</button>
+        <button class="nav-link" data-page="products"><span>▦</span> Inventory</button>
+        <button class="nav-link" data-page="sales"><span>↗</span> Sales & Billing</button>
+        <button class="nav-link" data-page="customers"><span>♙</span> Customers</button>
+        <button class="nav-link" data-page="expenses"><span>↘</span> Expenses</button>
+        <button class="nav-link" data-page="reports"><span>▥</span> Reports</button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="business-card">
+          <span class="status-dot"></span>
+          <div><strong>My Business</strong><small>Local demo workspace</small></div>
+        </div>
+        <p class="sidebar-note">SHOPFLOW 360 <span>·</span> v1.0</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="menuButton" aria-label="Toggle menu">☰</button>
+        <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Dashboard</strong></div>
+        <div class="top-actions">
+          <span class="live-status"><span class="status-dot"></span> Local mode</span>
+          <button class="icon-button" id="themeButton" aria-label="Toggle theme">☼</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="page active" id="page-dashboard">
+          <div class="welcome-row">
+            <div>
+              <p class="eyebrow" id="todayLabel">BUSINESS OVERVIEW</p>
+              <h1>Good business starts <span>here.</span></h1>
+              <p class="muted">Here's what's happening in your business today.</p>
+            </div>
+            <button class="primary-button" data-action="new-sale">＋ New sale</button>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span>Total sales</span><span class="stat-icon green">↗</span></div>
+              <h2 id="statSales">₹0</h2><p class="stat-caption">Recorded sales · all time</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>Estimated gross profit</span><span class="stat-icon blue">◈</span></div>
+              <h2 id="statProfit">₹0</h2><p class="stat-caption">Sales less product costs</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>Outstanding payments</span><span class="stat-icon amber">◷</span></div>
+              <h2 id="statDue">₹0</h2><p class="stat-caption">Unpaid customer balances</p>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span>Products in stock</span><span class="stat-icon purple">▦</span></div>
+              <h2 id="statProducts">0</h2><p class="stat-caption" id="stockCaption">Unique products</p>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div><h3>Sales performance</h3><p class="muted">Recorded sales by day · last 7 days</p></div>
+                <span class="tag">7 DAYS</span>
+              </div>
+              <div class="chart" id="salesChart" aria-label="Sales chart"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><div><h3>Stock alerts</h3><p class="muted">Items that need attention</p></div><button class="text-button" data-page="products">View all →</button></div>
+              <div id="stockAlerts" class="compact-list"></div>
+            </article>
+
+            <article class="panel recent-panel">
+              <div class="panel-heading"><div><h3>Recent sales</h3><p class="muted">Your latest transactions</p></div><button class="text-button" data-page="sales">View all →</button></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>INVOICE</th><th>DATE</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody id="recentSales"></tbody></table>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><div><h3>Quick actions</h3><p class="muted">Get things done faster</p></div></div>
+              <div class="quick-actions">
+                <button data-action="new-product"><span>＋</span><div><strong>Add product</strong><small>Update your inventory</small></div><b>→</b></button>
+                <button data-action="new-sale"><span>↗</span><div><strong>Create sale</strong><small>Record a transaction</small></div><b>→</b></button>
+                <button data-action="new-customer"><span>♙</span><div><strong>Add customer</strong><small>Manage customer details</small></div><b>→</b></button>
+                <button data-action="new-expense"><span>↘</span><div><strong>Record expense</strong><small>Track business spending</small></div><b>→</b></button>
+              </div>
+            </article>
+          </div>
+          <p class="footer-note">SHOPFLOW 360 · Your business, organized. <span>Demo data stays in this browser.</span></p>
+        </section>
+
+        <section class="page" id="page-products">
+          <div class="page-heading"><div><p class="eyebrow">PRODUCT MANAGEMENT</p><h1>Inventory</h1><p class="muted">Track products, stock and selling prices.</p></div><button class="primary-button" data-action="new-product">＋ Add product</button></div>
+          <div class="toolbar"><input id="productSearch" type="search" placeholder="Search products or SKU…" aria-label="Search products"><span class="muted" id="productCount">0 products</span></div>
+          <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>SKU</th><th>SELL PRICE</th><th>COST PRICE</th><th>STOCK</th><th>ACTIONS</th></tr></thead><tbody id="productTable"></tbody></table></div></article>
+        </section>
+
+        <section class="page" id="page-sales">
+          <div class="page-heading"><div><p class="eyebrow">REVENUE MANAGEMENT</p><h1>Sales & Billing</h1><p class="muted">Create sales and follow payment status.</p></div><button class="primary-button" data-action="new-sale">＋ New sale</button></div>
+          <div class="stats-grid two-stats">
+            <article class="stat-card"><span>Total recorded sales</span><h2 id="salesTotal">₹0</h2></article>
+            <article class="stat-card"><span>Payments received</span><h2 id="paymentsTotal">₹0</h2></article>
+          </div>
+          <article class="panel table-panel"><div class="panel-heading"><div><h3>All transactions</h3><p class="muted">Invoices and payment balances</p></div><button class="secondary-button" id="exportSales">Export CSV</button></div><div class="table-wrap"><table><thead><tr><th>INVOICE</th><th>CUSTOMER</th><th>DATE</th><th>TOTAL</th><th>PAID</th><th>DUE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody id="salesTable"></tbody></table></div></article>
+        </section>
+
+        <section class="page" id="page-customers">
+          <div class="page-heading"><div><p class="eyebrow">CUSTOMER RELATIONSHIPS</p><h1>Customers</h1><p class="muted">Keep customer details and outstanding balances organized.</p></div><button class="primary-button" data-action="new-customer">＋ Add customer</button></div>
+          <div class="toolbar"><input id="customerSearch" type="search" placeholder="Search customers…" aria-label="Search customers"></div>
+          <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>CUSTOMER</th><th>PHONE</th><th>SALES</th><th>OUTSTANDING</th><th>ACTIONS</th></tr></thead><tbody id="customerTable"></tbody></table></div></article>
+        </section>
+
+        <section class="page" id="page-expenses">
+          <div class="page-heading"><div><p class="eyebrow">COST MANAGEMENT</p><h1>Expenses</h1><p class="muted">Understand where your business money goes.</p></div><button class="primary-button" data-action="new-expense">＋ Add expense</button></div>
+          <div class="stats-grid two-stats"><article class="stat-card"><span>Total recorded expenses</span><h2 id="expenseTotal">₹0</h2></article><article class="stat-card"><span>Expense entries</span><h2 id="expenseCount">0</h2></article></div>
+          <article class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>DESCRIPTION</th><th>CATEGORY</th><th>DATE</th><th>AMOUNT</th><th>ACTIONS</th></tr></thead><tbody id="expenseTable"></tbody></table></div></article>
+        </section>
+
+        <section class="page" id="page-reports">
+          <div class="page-heading"><div><p class="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports</h1><p class="muted">Understand sales, costs and stock at a glance.</p></div><button class="secondary-button" id="exportAll">Export all data</button></div>
+          <div class="stats-grid">
+            <article class="stat-card"><span>Revenue</span><h2 id="reportRevenue">₹0</h2></article>
+            <article class="stat-card"><span>Product costs</span><h2 id="reportCosts">₹0</h2></article>
+            <article class="stat-card"><span>Expenses</span><h2 id="reportExpenses">₹0</h2></article>
+            <article class="stat-card"><span>Estimated result</span><h2 id="reportNet">₹0</h2></article>
+          </div>
+          <article class="panel"><div class="panel-heading"><div><h3>Sales by product</h3><p class="muted">Items ranked by recorded quantity sold</p></div></div><div id="productReport" class="report-bars"></div></article>
+          <article class="panel backup-panel"><div><h3>Data backup</h3><p class="muted">Export a JSON backup to keep a copy of this browser's demo data. Restore only files you trust.</p></div><div class="backup-actions"><button class="secondary-button" id="backupButton">Download backup</button><button class="secondary-button" id="restoreButton">Restore backup</button><input id="restoreFile" type="file" accept=".json,application/json" hidden></div></article>
+          <p class="footer-note">Figures are estimates from the records entered in this app. They are not audited accounts or tax reports.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-heading"><div><p class="eyebrow">SHOPFLOW 360</p><h2 id="modalTitle">Add record</h2></div><button class="icon-button" id="closeModal" aria-label="Close dialog">✕</button></div>
+      <form id="recordForm"><div id="formFields" class="form-fields"></div><div class="modal-footer"><button type="button" class="secondary-button" id="cancelModal">Cancel</button><button type="submit" class="primary-button">Save record</button></div></form>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
+</body>
+</html>
